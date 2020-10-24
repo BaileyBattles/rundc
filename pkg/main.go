@@ -8,39 +8,14 @@ import (
 	"syscall"
 )
 
-//handle syscall :platform/ptr
-
 const (
 	PTRACE_SYSEMU  = 31
 	PTRACE_SYSCALL = 24
 )
 
-var syscallMap map[uint64]string = map[uint64]string{
-	0:  "Read",
-	1:  "Write",
-	2:  "Open",
-	3:  "Close",
-	9:  "Mmap",
-	12: "Brk",
-	21: "Access",
-}
-
-func syscallName(num uint64) string {
-	val, ok := syscallMap[num]
-	if !ok {
-		return fmt.Sprintf("%d", num)
-	} else {
-		return val
-	}
-}
-
-func test(l uintptr) {
-	l = 25
-}
-
 func main() {
-	p := kernel.CreatePtraceProcess("./test/test_syscallreturn.o", []string{})
-	// p := kernel.CreatePtraceProcess("echo", []string{"hello"})
+	// p := kernel.CreatePtraceProcess("./test/test_syscallreturn.o", []string{})
+	p := kernel.CreatePtraceProcess("/bin/bash", []string{})
 
 	p.Start()
 	err := p.Wait()
