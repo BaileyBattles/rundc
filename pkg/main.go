@@ -7,7 +7,6 @@ import (
 	"syscall"
 
 	"rundc/pkg/process"
-	"rundc/pkg/sys"
 )
 
 //handle syscall :platform/ptr
@@ -37,35 +36,48 @@ func syscallName(num uint64) string {
 }
 
 func main() {
-	p := process.CreatePtraceProcess("echo", []string{"here"})
+	counter := 0
+	p := process.CreatePtraceProcess("../test/test_syscallreturn.o", []string{})
 
 	p.Start()
 	err := p.Wait()
-	if err != nil {
+	if err.Error() != "stop signal: trace/breakpoint trap" {
 		fmt.Printf("Wait returned with err: %v\n\n\n", err.Error())
 	}
 
 	for {
-		p.Ptrace(PTRACE_SYSCALL)
+		if counter == 44 {
+			p.Ptrace(PTRACE_SYSEMU)
+
+		} else {
+			p.Ptrace(PTRACE_SYSCALL)
+		}
 
 		status, err := p.WaitForStatus()
+		if status.Exited() {
+			fmt.Println("Child process has exited")
+			os.Exit(0)
+		}
 		if err != nil {
 			fmt.Printf("Error waiting for status %s\n", err.Error())
 		}
 
-		regs, err := p.GetRegs()
-		if err != nil {
-			fmt.Printf("error getting regs: %s\n", err.Error())
-		}
-		sys.PrintSyscallName(regs.Orig_rax)
+		if status.Stopped() && status.StopSignal() == syscall.SIGTRAP {
 
+			err = p.HandleSyscall(counter == 44)
+			if err != nil {
+				fmt.Printf("Error handling syscall: %s\n", err.Error())
+			}
+			counter += 1
+
+		}
 		if status.Stopped() && status.StopSignal() == syscall.SIGSEGV {
+			os.Exit(2)
 			fmt.Println("Stopped")
 			fmt.Println(status.StopSignal())
+			s, _ := p.GetSignalInfo()
+			fmt.Println(s)
 			err = p.Ptrace(syscall.PTRACE_CONT)
-		}
-		if err != nil {
-			os.Exit(2)
 		}
 	}
 }
