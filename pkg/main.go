@@ -2,11 +2,10 @@ package main
 
 import (
 	"fmt"
+	"rundc/pkg/kernel"
 
 	"os"
 	"syscall"
-
-	"rundc/pkg/process"
 )
 
 //handle syscall :platform/ptr
@@ -35,9 +34,13 @@ func syscallName(num uint64) string {
 	}
 }
 
+func test(l uintptr) {
+	l = 25
+}
+
 func main() {
-	counter := 0
-	p := process.CreatePtraceProcess("../test/test_syscallreturn.o", []string{})
+	p := kernel.CreatePtraceProcess("./test/test_syscallreturn.o", []string{})
+	// p := kernel.CreatePtraceProcess("echo", []string{"hello"})
 
 	p.Start()
 	err := p.Wait()
@@ -46,12 +49,7 @@ func main() {
 	}
 
 	for {
-		if counter == 44 {
-			p.Ptrace(PTRACE_SYSEMU)
-
-		} else {
-			p.Ptrace(PTRACE_SYSCALL)
-		}
+		p.Ptrace(PTRACE_SYSCALL)
 
 		status, err := p.WaitForStatus()
 		if status.Exited() {
@@ -64,20 +62,14 @@ func main() {
 
 		if status.Stopped() && status.StopSignal() == syscall.SIGTRAP {
 
-			err = p.HandleSyscall(counter == 44)
+			err = p.HandleSyscall()
 			if err != nil {
 				fmt.Printf("Error handling syscall: %s\n", err.Error())
 			}
-			counter += 1
 
 		}
 		if status.Stopped() && status.StopSignal() == syscall.SIGSEGV {
-			os.Exit(2)
-			fmt.Println("Stopped")
-			fmt.Println(status.StopSignal())
-			s, _ := p.GetSignalInfo()
-			fmt.Println(s)
-			err = p.Ptrace(syscall.PTRACE_CONT)
+			panic("Received a signal")
 		}
 	}
 }

@@ -1,4 +1,4 @@
-package process
+package kernel
 
 import (
 	"fmt"
@@ -11,8 +11,8 @@ import (
 )
 
 type Process struct {
-	cmd          *exec.Cmd
-	syscallStart bool
+	kernel *Kernel
+	cmd    *exec.Cmd
 }
 
 func CreatePtraceProcess(path string, args []string) *Process {
@@ -24,10 +24,18 @@ func CreatePtraceProcess(path string, args []string) *Process {
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Ptrace: true,
 	}
-	return &Process{
-		cmd:          cmd,
-		syscallStart: true,
+	kernel := &Kernel{
+		Table: NewSyscallTable(),
 	}
+	kernel.Table.Register(uintptr(1), func(SyscallArguments) (uintptr, uintptr, syscall.Errno) {
+		fmt.Println("you do what i say")
+		return uintptr(0), uintptr(0), syscall.Errno(uintptr(1))
+	})
+	return &Process{
+		cmd:    cmd,
+		kernel: kernel,
+	}
+
 }
 
 func (this *Process) Start() error {
@@ -40,37 +48,35 @@ func (this *Process) Wait() error {
 
 func (this *Process) Ptrace(flags int) error {
 	if _, _, errno := syscall.Syscall6(syscall.SYS_PTRACE, uintptr(flags), uintptr(this.cmd.Process.Pid), 0, 0, 0, 0); errno != 0 {
-		fmt.Printf("Ptrace failed with errno = %s\n", errno.Error())
 		return error(errno)
 	}
 	return nil
 }
 
-func (this *Process) HandleSyscall(doIt bool) error {
-	if doIt {
-		abi.PutRegs(this.cmd.Process.Pid)
-	}
-	if !this.syscallStart {
-		this.syscallStart = true
-		return nil
-	}
-	this.syscallStart = false
+func (this *Process) HandleSyscall() error {
 	regs, err := this.getRegs()
 	if err != nil {
 		return err
 	}
 	sys.PrintSyscallName(regs.Orig_rax)
+
+	this.kernel.HandleSyscall(this, uintptr(regs.Orig_rax), SyscallArguments{
+		Rdi: uintptr(regs.Rdi),
+		Rsi: uintptr(regs.Rsi),
+		Rdx: uintptr(regs.Rdx),
+		R10: uintptr(regs.R10),
+		R8:  uintptr(regs.R8),
+		R9:  uintptr(regs.R9),
+	})
+	// regs, err = this.getRegs()
+	// if err != nil {
+	// 	return err
+	// }
+	//abi.SetReturnValue(this.cmd.Process.Pid, int(rval))
 	return nil
 }
 
 func (this *Process) GetSignalInfo() (*abi.SignalInfo, error) {
-	// sigInfo := &sys.SignalInfo{}
-	// ptr := unsafe.Pointer(sigInfo)
-	// if _, _, errno := syscall.Syscall6(syscall.SYS_PTRACE, syscall.PTRACE_GETSIGINFO, uintptr(this.cmd.Process.Pid), 0, uintptr(ptr), 0, 0); errno != 0 {
-	// 	fmt.Printf("Ptrace failed with errno = %s\n", errno.Error())
-	// 	return nil, error(errno)
-	// }
-	// return sigInfo, nil
 	return abi.GetSignalInfo(this.cmd.Process.Pid)
 }
 

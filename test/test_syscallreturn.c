@@ -2,8 +2,5 @@
 #include <stdio.h>
 
 int main() {
-    int fd = unlink("apath");
-    if (fd != 77) {
-        printf("File descriptor = %d\n", fd);
-    }
+    write(1, "hello", 5);
 }
