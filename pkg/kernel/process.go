@@ -1,41 +1,17 @@
 package kernel
 
 import (
-	"fmt"
-	"os"
 	"os/exec"
 	"syscall"
 
 	"rundc/pkg/abi"
+	"rundc/pkg/kernel/syscalls"
 	"rundc/pkg/sys"
 )
 
 type Process struct {
 	kernel *Kernel
 	cmd    *exec.Cmd
-}
-
-func CreatePtraceProcess(path string, args []string) *Process {
-	fmt.Println("Creating process")
-	cmd := exec.Command(path, args...)
-	cmd.Stderr = os.Stderr
-	cmd.Stdin = os.Stdin
-	cmd.Stdout = os.Stdout
-	cmd.SysProcAttr = &syscall.SysProcAttr{
-		Ptrace: true,
-	}
-	kernel := &Kernel{
-		Table: NewSyscallTable(),
-	}
-	kernel.Table.Register(uintptr(1), func(SyscallArguments) (uintptr, uintptr, syscall.Errno) {
-		fmt.Println("you do what i say")
-		return uintptr(0), uintptr(0), syscall.Errno(uintptr(1))
-	})
-	return &Process{
-		cmd:    cmd,
-		kernel: kernel,
-	}
-
 }
 
 func (this *Process) Start() error {
@@ -60,7 +36,7 @@ func (this *Process) HandleSyscall() error {
 	}
 	sys.PrintSyscallName(regs.Orig_rax)
 
-	this.kernel.HandleSyscall(this, uintptr(regs.Orig_rax), SyscallArguments{
+	this.kernel.HandleSyscall(this, uintptr(regs.Orig_rax), syscalls.SyscallArguments{
 		Rdi: uintptr(regs.Rdi),
 		Rsi: uintptr(regs.Rsi),
 		Rdx: uintptr(regs.Rdx),
@@ -68,11 +44,7 @@ func (this *Process) HandleSyscall() error {
 		R8:  uintptr(regs.R8),
 		R9:  uintptr(regs.R9),
 	})
-	// regs, err = this.getRegs()
-	// if err != nil {
-	// 	return err
-	// }
-	//abi.SetReturnValue(this.cmd.Process.Pid, int(rval))
+
 	return nil
 }
 

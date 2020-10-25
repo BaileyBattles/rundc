@@ -1,17 +1,11 @@
 package kernel
 
-import "syscall"
+import (
+	"rundc/pkg/kernel/syscalls"
+	"syscall"
+)
 
-type SyscallArguments struct {
-	Rdi uintptr
-	Rsi uintptr
-	Rdx uintptr
-	R10 uintptr
-	R8  uintptr
-	R9  uintptr
-}
-
-type Syscall func(SyscallArguments) (uintptr, uintptr, syscall.Errno)
+type Syscall func(syscalls.SyscallArguments) (uintptr, uintptr, syscall.Errno)
 
 type SyscallTable struct {
 	table map[uintptr]Syscall
@@ -19,7 +13,9 @@ type SyscallTable struct {
 
 func NewSyscallTable() *SyscallTable {
 	s := SyscallTable{}
-	s.table = make(map[uintptr]Syscall)
+	s.table = map[uintptr]Syscall{
+		uintptr(1): syscalls.Write,
+	}
 	return &s
 }
 
@@ -35,7 +31,7 @@ func (s *SyscallTable) GetSyscall(id uintptr) Syscall {
 }
 
 func basicSyscall(id uintptr) Syscall {
-	return func(args SyscallArguments) (uintptr, uintptr, syscall.Errno) {
+	return func(args syscalls.SyscallArguments) (uintptr, uintptr, syscall.Errno) {
 		return syscall.Syscall6(
 			uintptr(id), args.Rdi,
 			args.Rsi, args.Rdx,
