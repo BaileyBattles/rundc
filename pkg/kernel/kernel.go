@@ -18,9 +18,12 @@ func (kernel *Kernel) Init() {
 	kernel.table = NewSyscallTable()
 }
 
-func (kernel *Kernel) HandleSyscall(process *Process, id uintptr, args syscalls.SyscallArguments) {
+func (kernel *Kernel) HandleSyscall(process *Process, id uintptr, args syscalls.SyscallArguments) error {
 	if syscall := kernel.table.GetSyscall(id); syscall != nil {
-		syscall(args)
+		if _, _, errno := syscall(args); errno != 0 {
+			fmt.Printf("Failed executing syscall with errno: %s\n", errno.Error())
+			return errno
+		}
 		abi.SetSyscall(process.cmd.Process.Pid, 64)
 		err := waitForSyscallCompletion(process)
 		if err != nil {
@@ -33,6 +36,7 @@ func (kernel *Kernel) HandleSyscall(process *Process, id uintptr, args syscalls.
 			panic("Failed to wait for syscall")
 		}
 	}
+	return nil
 }
 
 func (this *Kernel) createPtraceProcess(path string, args []string) *Process {

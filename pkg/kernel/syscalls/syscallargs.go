@@ -7,4 +7,5 @@ type SyscallArguments struct {
 	R10 uintptr
 	R8  uintptr
 	R9  uintptr
+	Pid int
 }

@@ -6,7 +6,6 @@ import (
 
 	"rundc/pkg/abi"
 	"rundc/pkg/kernel/syscalls"
-	"rundc/pkg/sys"
 )
 
 type Process struct {
@@ -34,16 +33,19 @@ func (this *Process) HandleSyscall() error {
 	if err != nil {
 		return err
 	}
-	sys.PrintSyscallName(regs.Orig_rax)
+	//sys.PrintSyscallName(regs.Orig_rax)
 
-	this.kernel.HandleSyscall(this, uintptr(regs.Orig_rax), syscalls.SyscallArguments{
+	if err = this.kernel.HandleSyscall(this, uintptr(regs.Orig_rax), syscalls.SyscallArguments{
 		Rdi: uintptr(regs.Rdi),
 		Rsi: uintptr(regs.Rsi),
 		Rdx: uintptr(regs.Rdx),
 		R10: uintptr(regs.R10),
 		R8:  uintptr(regs.R8),
 		R9:  uintptr(regs.R9),
-	})
+		Pid: this.cmd.Process.Pid,
+	}); err != nil {
+		return err
+	}
 
 	return nil
 }
