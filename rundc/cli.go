@@ -22,27 +22,61 @@ func (c *Cli) Main(args []string) {
 	fmt.Println(args)
 }
 
+//dockerResolver.Resolve in containerd/remotes/docker/resolver.go
 func pull(imageName string) {
-	resp, err := http.Get("https://auth.docker.io/token?service=registry.docker.io&scope=repository:library/alpine:pull")
+	req, err := getRequestWithAuthHeaders("https://registry-1.docker.io/v2/library/alpine/manifests/latest")
 	if err != nil {
-		fmt.Println(err)
+		panic(err)
 	}
-	var response map[string]string
-	body, _ := ioutil.ReadAll(resp.Body)
-	json.Unmarshal(body, &response)
-	// fmt.Println(response["token"])
+	client := &http.Client{}
+	resp, _ := client.Do(req)
+	printResponse(resp)
 
 	resp.Body.Close()
-	req, _ := http.NewRequest("GET", "https://registry-1.docker.io/v2/library/alpine/manifests/latest", nil)
-	auth_header := fmt.Sprintf("Bearer %s", response["token"])
+	//fmt.Sprintf("https://registry-1.docker.io/v2/library/alpine/blobs/%s", resp[config][digest])
+	req, err = getRequestWithAuthHeaders("https://registry-1.docker.io/v2/library/alpine/blobs/sha256:d6e46aa2470df1d32034c6707c8041158b652f38d2a9ae3d7ad7e7532d22ebe0")
+	if err != nil {
+		panic(err)
+	}
+	resp, _ = client.Do(req)
+
+	printResponse(resp)
+}
+
+func getRequestWithAuthHeaders(endpoint string) (*http.Request, error) {
+	resp, err := http.Get("https://auth.docker.io/token?service=registry.docker.io&scope=repository:library/alpine:pull")
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	var tokenResponse map[string]interface{}
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	err = json.Unmarshal(body, &tokenResponse)
+	if err != nil {
+		return nil, err
+	}
+
+	auth_header := fmt.Sprintf("Bearer %s", tokenResponse["token"])
+
+	req, err := http.NewRequest("GET", endpoint, nil)
+	if err != nil {
+		return nil, err
+	}
 	req.Header.Add("Authorization", auth_header)
 	req.Header.Add("Accept", "application/vnd.docker.distribution.manifest.v2+json")
-	client := &http.Client{}
-	resp2, _ := client.Do(req)
+	return req, nil
+}
 
-	var response2 map[string]string
-
-	x, _ := ioutil.ReadAll(resp2.Body)
-	json.Unmarshal(x, &response2)
-	fmt.Println(response2)
+func printResponse(resp *http.Response) {
+	var dataResponse map[string]interface{}
+	x, _ := ioutil.ReadAll(resp.Body)
+	json.Unmarshal(x, &dataResponse)
+	fmt.Println(dataResponse)
+	fmt.Print("\n\n\n")
+	fmt.Println(resp.Header)
+	fmt.Print("\n\n\n")
 }
