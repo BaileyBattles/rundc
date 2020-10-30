@@ -4,10 +4,11 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"syscall"
+
 	"rundc/pkg/abi"
 	"rundc/pkg/kernel/syscalls"
 	"rundc/pkg/sys"
-	"syscall"
 )
 
 type Kernel struct {
@@ -57,13 +58,14 @@ func (this *Kernel) createPtraceProcess(path string, args []string) *Process {
 
 func (this *Kernel) Run(path string, args []string) {
 	p := this.createPtraceProcess(path, args)
+
 	p.Start()
 	_, err := p.WaitForStatus()
 	if err != nil {
 		fmt.Printf("Wait returned with err: %v\n\n\n", err.Error())
 	}
 	ch := make(chan struct{})
-	this.runProcess(p, ch)
+	go this.runProcess(p, ch)
 	<-ch
 	kernelLoop()
 }

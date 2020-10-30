@@ -1,6 +1,6 @@
 .PHONY: all
 all:
-	go build -o bin/main rundc/main.go 
+	go build -o bin/rundc main.go 
 
 run:
-	./bin/main
+	.bin/rundc run /bin/bash
