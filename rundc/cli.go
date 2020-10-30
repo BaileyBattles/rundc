@@ -30,13 +30,19 @@ func pull(imageName string) {
 	var response map[string]string
 	body, _ := ioutil.ReadAll(resp.Body)
 	json.Unmarshal(body, &response)
-	fmt.Println(response["token"])
+	// fmt.Println(response["token"])
 
+	resp.Body.Close()
 	req, _ := http.NewRequest("GET", "https://registry-1.docker.io/v2/library/alpine/manifests/latest", nil)
 	auth_header := fmt.Sprintf("Bearer %s", response["token"])
 	req.Header.Add("Authorization", auth_header)
 	req.Header.Add("Accept", "application/vnd.docker.distribution.manifest.v2+json")
 	client := &http.Client{}
-	resp, _ = client.Do(req)
-	fmt.Println(resp)
+	resp2, _ := client.Do(req)
+
+	var response2 map[string]string
+
+	x, _ := ioutil.ReadAll(resp2.Body)
+	json.Unmarshal(x, &response2)
+	fmt.Println(response2)
 }
