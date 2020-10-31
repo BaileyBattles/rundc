@@ -7,6 +7,9 @@ import (
 	"net/http"
 	"os"
 	"rundc/pkg/log"
+
+	digest "github.com/opencontainers/go-digest"
+	v1 "github.com/opencontainers/image-spec/specs-go/v1"
 )
 
 type Cli struct {
@@ -24,23 +27,52 @@ func (c *Cli) Main(args []string) {
 
 //dockerResolver.Resolve in containerd/remotes/docker/resolver.go
 func pull(imageName string) {
-	req, err := getRequestWithAuthHeaders("https://registry-1.docker.io/v2/library/alpine/manifests/latest")
+	manifest := getManifest(imageName)
+	image := getImage(imageName, manifest.Config.Digest)
+	fmt.Println(image.OS)
+}
+
+func getManifest(imageName string) v1.Manifest {
+	req, err := getRequestWithAuthHeaders(fmt.Sprintf("https://registry-1.docker.io/v2/library/%s/manifests/latest", imageName))
 	if err != nil {
 		panic(err)
 	}
 	client := &http.Client{}
-	resp, _ := client.Do(req)
-	printResponse(resp)
-
-	resp.Body.Close()
-	//fmt.Sprintf("https://registry-1.docker.io/v2/library/alpine/blobs/%s", resp[config][digest])
-	req, err = getRequestWithAuthHeaders("https://registry-1.docker.io/v2/library/alpine/blobs/sha256:d6e46aa2470df1d32034c6707c8041158b652f38d2a9ae3d7ad7e7532d22ebe0")
+	resp, err := client.Do(req)
+	if err != nil {
+		log.LogErrorAndExit(err.Error())
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		panic(err)
 	}
-	resp, _ = client.Do(req)
+	var manifest v1.Manifest
+	err = json.Unmarshal(body, &manifest)
+	if err != nil {
+		log.LogErrorAndExit(err.Error())
+	}
+	return manifest
+}
 
-	printResponse(resp)
+func getImage(imageName string, digest digest.Digest) v1.Image {
+	req, err := getRequestWithAuthHeaders(fmt.Sprintf("https://registry-1.docker.io/v2/library/%s/blobs/%s", imageName, digest))
+	if err != nil {
+		panic(err)
+	}
+	client := &http.Client{}
+
+	resp, _ := client.Do(req)
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		panic(err)
+	}
+	var image v1.Image
+	err = json.Unmarshal(body, &image)
+	if err != nil {
+		log.LogErrorAndExit(err.Error())
+	}
+	return image
 }
 
 func getRequestWithAuthHeaders(endpoint string) (*http.Request, error) {
