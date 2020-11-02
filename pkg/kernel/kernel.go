@@ -49,6 +49,7 @@ func (this *Kernel) createPtraceProcess(path string, args []string) *Process {
 	cmd.Stdout = os.Stdout
 	cmd.SysProcAttr = &syscall.SysProcAttr{
 		Ptrace: true,
+		Cloneflags: syscall.CLONE_NEWUTS,
 	}
 	return &Process{
 		cmd:    cmd,
