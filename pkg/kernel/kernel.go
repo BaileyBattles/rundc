@@ -7,6 +7,7 @@ import (
 	"syscall"
 
 	"rundc/pkg/abi"
+	"rundc/pkg/log"
 	"rundc/pkg/kernel/syscalls"
 	"rundc/pkg/sys"
 )
@@ -41,7 +42,7 @@ func (kernel *Kernel) HandleSyscall(process *Process, id uintptr, args syscalls.
 }
 
 func (this *Kernel) createPtraceProcess(path string, args []string) *Process {
-	fmt.Println("Creating process")
+	log.Info("Creating process")
 	cmd := exec.Command(path, args...)
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
@@ -76,7 +77,7 @@ func (this *Kernel) runProcess(p *Process, ch chan struct{}) {
 
 		status, err := p.WaitForStatus()
 		if status.Exited() {
-			fmt.Println("Child process has exited")
+			log.Info("Child process has exited")
 			close(ch)
 			return
 		}
@@ -108,6 +109,5 @@ func waitForSyscallCompletion(process *Process) error {
 }
 
 func kernelLoop() {
-	for {
-	}
+	select {}
 }

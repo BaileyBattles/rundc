@@ -11,15 +11,15 @@ const (
 	reset = "\033[0m"
 )
 
-func LogInfo(message string) {
-	fmt.Println(string(green), fmt.Sprintf("[INFO] %s", message), string(reset))
+func Info(message interface{}) {
+	fmt.Println(green, fmt.Sprintf("[INFO] %s", message), reset)
 }
 
-func LogError(message string) {
-	fmt.Println(string(red), fmt.Sprintf("[ERROR] %s", message), string(reset))
+func Error(message interface{}) {
+	fmt.Println(red, fmt.Sprintf("[ERROR] %s", message), reset)
 }
 
-func LogErrorAndExit(message string) {
-	LogError(message)
+func ErrorAndExit(message interface{}) {
+	Error(message)
 	os.Exit(1)
 }

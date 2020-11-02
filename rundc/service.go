@@ -17,6 +17,6 @@ func (self *ContainerService) StartContainer(c *Container) {
 func startContainerProcess() {
 	err := syscall.Sethostname([]byte("container"))
 	if err != nil {
-		log.LogErrorAndExit(fmt.Sprintf("failed to set hostname: %s", err.Error()))
+		log.ErrorAndExit(fmt.Sprintf("failed to set hostname: %s", err.Error()))
 	}
 }
