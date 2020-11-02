@@ -1,12 +1,15 @@
 package rundc
 
 import (
+	"bufio"
 	"encoding/json"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"rundc/pkg/log"
+	"strings"
 
 	digest "github.com/opencontainers/go-digest"
 	v1 "github.com/opencontainers/image-spec/specs-go/v1"
@@ -29,7 +32,18 @@ func (c *Cli) Main(args []string) {
 func pull(imageName string) {
 	manifest := getManifest(imageName)
 	image := getImage(imageName, manifest.Config.Digest)
+	createFs(imageName)
+	for _, layer := range manifest.Layers {
+		pullLayer(imageName, layer.Digest)
+	}
 	log.Info(image.OS)
+}
+
+func createFs(imageName string) {
+	err := os.Mkdir(imageName, os.ModeDir)
+	if err != nil {
+		log.ErrorAndExit(err.Error())
+	}
 }
 
 func getManifest(imageName string) v1.Manifest {
@@ -62,7 +76,10 @@ func getImage(imageName string, digest digest.Digest) v1.Image {
 	}
 	client := &http.Client{}
 
-	resp, _ := client.Do(req)
+	resp, err := client.Do(req)
+	if err != nil {
+		log.ErrorAndExit(err.Error())
+	}
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		panic(err)
@@ -73,6 +90,40 @@ func getImage(imageName string, digest digest.Digest) v1.Image {
 		log.ErrorAndExit(err.Error())
 	}
 	return image
+}
+
+func pullLayer(imageName string, digest digest.Digest) {
+	fmt.Println(digest)
+	req, err := getRequestWithAuthHeaders(fmt.Sprintf("https://registry-1.docker.io/v2/library/%s/blobs/%s", imageName, digest))
+	if err != nil {
+		log.ErrorAndExit(err.Error())
+	}
+	client := &http.Client{}
+
+	resp, err := client.Do(req)
+	if err != nil {
+		log.ErrorAndExit(err.Error())
+	}
+	reader := bufio.NewReader(resp.Body)
+	f, err := os.Create(fmt.Sprintf("%s/layer.tar", imageName))
+	if err != nil {
+		log.ErrorAndExit(err.Error())
+	}
+	defer f.Close()
+	for {
+		buffer := make([]byte, 8192)
+		_, err := io.ReadFull(reader, buffer)
+		if err != nil {
+			if strings.Contains(err.Error(), "EOF") {
+				f.Write(buffer)
+				break
+			}
+			log.ErrorAndExit(err.Error())
+		}
+		f.Write(buffer)
+	}
+	fmt.Println("here")
+
 }
 
 func getRequestWithAuthHeaders(endpoint string) (*http.Request, error) {
